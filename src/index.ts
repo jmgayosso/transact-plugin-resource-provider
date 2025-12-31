@@ -27,6 +27,20 @@ interface ResourceProviderOptions {
     // allowActions?: NameType[]
     endpoints?: Record<string, string>
     maxFee?: AssetType
+    /**
+     * Optional callback used to obtain a reCAPTCHA token when the resource provider
+     * requires a human verification step before processing a request.
+     *
+     * Implementations should trigger any necessary reCAPTCHA flow (for example,
+     * rendering a widget or executing an invisible reCAPTCHA) and resolve with
+     * the resulting token string that will be sent to the resource provider.
+     *
+     * If no reCAPTCHA challenge is required or you do not use reCAPTCHA, this
+     * property can be omitted.
+     *
+     * @returns A Promise that resolves to a reCAPTCHA token string.
+     */
+    executeRecaptchaRequest?: () => Promise<string>
 }
 
 interface ResourceProviderResponseData {
@@ -79,6 +93,8 @@ export class TransactPluginResourceProvider extends AbstractTransactPlugin {
 
     readonly endpoints: Record<string, string> = defaultOptions.endpoints
 
+    readonly executeRecaptchaRequest?: () => Promise<string>
+
     constructor(options?: ResourceProviderOptions) {
         super()
         if (options) {
@@ -91,6 +107,9 @@ export class TransactPluginResourceProvider extends AbstractTransactPlugin {
             }
             if (typeof options.maxFee !== 'undefined') {
                 this.maxFee = Asset.from(options.maxFee)
+            }
+            if (options.executeRecaptchaRequest) {
+                this.executeRecaptchaRequest = options.executeRecaptchaRequest
             }
             // TODO: Allow contact/action combos to be passed in and checked against to ensure no rogue actions were appended.
             // if (typeof options.allowActions !== 'undefined') {
@@ -168,13 +187,33 @@ export class TransactPluginResourceProvider extends AbstractTransactPlugin {
         // Assemble the request to the resource provider.
         const url = `${endpoint}/v1/resource_provider/request_transaction`
 
+        // If recaptcha execution function is provided, execute it to get the token
+        let recaptchaToken: string | undefined
+        if (this.executeRecaptchaRequest) {
+            try {
+                recaptchaToken = await this.executeRecaptchaRequest()
+            } catch (error) {
+                // If recaptcha token retrieval fails, log the error and continue without the token
+                // to avoid crashing the entire transaction flow.
+                // eslint-disable-next-line no-console
+                console.error('Failed to execute reCAPTCHA request:', error)
+                recaptchaToken = undefined
+            }
+        }
+
+        // Define the body of the request
+        const body = {
+            request: modifiedRequest,
+            signer: context.permissionLevel,
+            ...(recaptchaToken ? { recaptchaResponse: recaptchaToken } : {}),
+        }
+
+        // If recaptcha token is available, include it in the body
+        // it will be included via the conditional spread in the body definition above.
         // Perform the request to the resource provider.
         const response = await context.fetch(url, {
             method: 'POST',
-            body: JSON.stringify({
-                request: modifiedRequest,
-                signer: context.permissionLevel,
-            }),
+            body: JSON.stringify(body),
         })
         const json: ResourceProviderResponse = await response.json()
 
