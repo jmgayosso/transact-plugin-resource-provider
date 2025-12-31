@@ -175,7 +175,7 @@ export class TransactPluginResourceProvider extends AbstractTransactPlugin {
         const url = `${endpoint}/v1/resource_provider/request_transaction`
 
         // If recaptcha execution function is provided, execute it to get the token
-        let recaptchaToken: string | undefined = undefined
+        let recaptchaToken: string | undefined
         if (this.executeRecaptchaRequest) {
             try {
                 recaptchaToken = await this.executeRecaptchaRequest()
