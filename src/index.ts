@@ -27,6 +27,7 @@ interface ResourceProviderOptions {
     // allowActions?: NameType[]
     endpoints?: Record<string, string>
     maxFee?: AssetType
+    executeRecaptchaRequest?: () => Promise<string>
 }
 
 interface ResourceProviderResponseData {
@@ -79,6 +80,8 @@ export class TransactPluginResourceProvider extends AbstractTransactPlugin {
 
     readonly endpoints: Record<string, string> = defaultOptions.endpoints
 
+    readonly executeRecaptchaRequest?: () => Promise<string>
+
     constructor(options?: ResourceProviderOptions) {
         super()
         if (options) {
@@ -91,6 +94,9 @@ export class TransactPluginResourceProvider extends AbstractTransactPlugin {
             }
             if (typeof options.maxFee !== 'undefined') {
                 this.maxFee = Asset.from(options.maxFee)
+            }
+            if (options.executeRecaptchaRequest) {
+                this.executeRecaptchaRequest = options.executeRecaptchaRequest
             }
             // TODO: Allow contact/action combos to be passed in and checked against to ensure no rogue actions were appended.
             // if (typeof options.allowActions !== 'undefined') {
@@ -168,13 +174,27 @@ export class TransactPluginResourceProvider extends AbstractTransactPlugin {
         // Assemble the request to the resource provider.
         const url = `${endpoint}/v1/resource_provider/request_transaction`
 
+        // If recaptcha execution function is provided, execute it to get the token
+        let recaptchaToken: string | undefined = undefined
+        if (this.executeRecaptchaRequest) {
+            recaptchaToken = await this.executeRecaptchaRequest()
+        }
+
+        // Define the body of the request
+        const body = {
+            request: modifiedRequest,
+            signer: context.permissionLevel
+        }
+
+        // If recaptcha token is available, include it in the body
+        if (recaptchaToken) {
+            body['recaptchaResponse'] = recaptchaToken
+        }
+
         // Perform the request to the resource provider.
         const response = await context.fetch(url, {
             method: 'POST',
-            body: JSON.stringify({
-                request: modifiedRequest,
-                signer: context.permissionLevel,
-            }),
+            body: JSON.stringify(body),
         })
         const json: ResourceProviderResponse = await response.json()
 
