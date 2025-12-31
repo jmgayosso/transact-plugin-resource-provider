@@ -27,6 +27,19 @@ interface ResourceProviderOptions {
     // allowActions?: NameType[]
     endpoints?: Record<string, string>
     maxFee?: AssetType
+    /**
+     * Optional callback used to obtain a reCAPTCHA token when the resource provider
+     * requires a human verification step before processing a request.
+     *
+     * Implementations should trigger any necessary reCAPTCHA flow (for example,
+     * rendering a widget or executing an invisible reCAPTCHA) and resolve with
+     * the resulting token string that will be sent to the resource provider.
+     *
+     * If no reCAPTCHA challenge is required or you do not use reCAPTCHA, this
+     * property can be omitted.
+     *
+     * @returns A Promise that resolves to a reCAPTCHA token string.
+     */
     executeRecaptchaRequest?: () => Promise<string>
 }
 
