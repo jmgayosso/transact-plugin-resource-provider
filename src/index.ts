@@ -177,7 +177,15 @@ export class TransactPluginResourceProvider extends AbstractTransactPlugin {
         // If recaptcha execution function is provided, execute it to get the token
         let recaptchaToken: string | undefined = undefined
         if (this.executeRecaptchaRequest) {
-            recaptchaToken = await this.executeRecaptchaRequest()
+            try {
+                recaptchaToken = await this.executeRecaptchaRequest()
+            } catch (error) {
+                // If recaptcha token retrieval fails, log the error and continue without the token
+                // to avoid crashing the entire transaction flow.
+                // eslint-disable-next-line no-console
+                console.error('Failed to execute reCAPTCHA request:', error)
+                recaptchaToken = undefined
+            }
         }
 
         // Define the body of the request
