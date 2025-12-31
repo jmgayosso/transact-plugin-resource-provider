@@ -191,14 +191,12 @@ export class TransactPluginResourceProvider extends AbstractTransactPlugin {
         // Define the body of the request
         const body = {
             request: modifiedRequest,
-            signer: context.permissionLevel
+            signer: context.permissionLevel,
+            ...(recaptchaToken ? { recaptchaResponse: recaptchaToken } : {}),
         }
 
         // If recaptcha token is available, include it in the body
-        if (recaptchaToken) {
-            body['recaptchaResponse'] = recaptchaToken
-        }
-
+        // it will be included via the conditional spread in the body definition above.
         // Perform the request to the resource provider.
         const response = await context.fetch(url, {
             method: 'POST',
