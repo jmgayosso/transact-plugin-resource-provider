@@ -213,6 +213,9 @@ export class TransactPluginResourceProvider extends AbstractTransactPlugin {
         // Perform the request to the resource provider.
         const response = await context.fetch(url, {
             method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
             body: JSON.stringify(body),
         })
         const json: ResourceProviderResponse = await response.json()
